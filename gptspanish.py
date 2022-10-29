@@ -1,4 +1,6 @@
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, DataCollatorForLanguageModeling, Trainer, TrainingArguments
+import torch
+#AutoModelForCausalLM or GPT2LMHeadModel
+from transformers import AutoTokenizer, GPT2LMHeadModel, AutoConfig, DataCollatorForLanguageModeling, Trainer, TrainingArguments, pipeline
 
 from datasets import load_dataset
 
@@ -56,14 +58,17 @@ print(tokenized_datasets)
 
 #Condiguración del modelo
 config = AutoConfig.from_pretrained(
-    'DeepESP/gpt2-spanish',
+    #'DeepESP/gpt2-spanish',
+    'gpt2',
     vocab_size = len(tokenizer),
     n_ctx = context_length,
     bos_token = tokenizer.bos_token,
     eos_token = tokenizer.eos_token,
 )
 
-model = AutoModelForCausalLM.from_config(config)
+#model = AutoModelForCausalLM.from_config(config)
+
+model = GPT2LMHeadModel(config)
 
 model_size = sum(t.numel() for t in model.parameters())
 print(f"GPT-2 size: {model_size/1000**2:.1f}M parameters")
@@ -78,21 +83,21 @@ for key in out:
     
 
 args = TrainingArguments(
-    output_dir="borges-ds",
-    per_device_train_batch_size=2,
-    per_device_eval_batch_size=2,
-    evaluation_strategy="steps",
-    eval_steps=1_000,
-    logging_steps=1_000,
-    gradient_accumulation_steps=8,
-    num_train_epochs=1,
-    weight_decay=0.1,
-    warmup_steps=1_000,
-    lr_scheduler_type="cosine",
-    learning_rate=5e-4,
-    save_steps=1_000,
-    fp16=False,
-    push_to_hub=True,
+    output_dir="borges-gpt",
+    per_device_train_batch_size = 8,
+    per_device_eval_batch_size = 8,
+    evaluation_strategy = "steps",
+    eval_steps = 1_000,
+    logging_steps = 1_000,
+    gradient_accumulation_steps = 8,
+    num_train_epochs = 3,
+    weight_decay = 0.01,
+    warmup_steps = 1_000,
+    lr_scheduler_type = "cosine",
+    learning_rate = 5e-4,
+    save_steps = 1_000,
+    fp16 = False,
+    push_to_hub = True,
 )
 
 trainer = Trainer(
@@ -105,3 +110,24 @@ trainer = Trainer(
 )
 
 trainer.train()
+
+#device = torch.device("cpu")
+
+#pipe = pipeline(
+#    "text-generation", model = "ser-mei/borges-ds", device = device
+#)
+
+#sample = "quien soy yo"
+
+#print(pipe(sample, num_return_sequence = 3)[0]["generated-text"])
+
+#model_inputs = tokenizer(sample, padding=True, return_tensors="pt")
+
+#output = model(**model_inputs)
+
+#ids = tokenizer.convert_tokens_to_ids(output)
+
+#print(tokenizer.decode(ids))
+
+trainer.push_to_hub()
+
